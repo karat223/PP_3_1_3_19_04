@@ -29,6 +29,7 @@ public class AdminController {
         return "admin/list";
     }
 
+
     @GetMapping("/new")
     public String showCreateForm(Model model) {
         model.addAttribute("user", new User());
