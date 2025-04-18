@@ -1,17 +1,23 @@
 package ru.kata.spring.boot_security.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import ru.kata.spring.boot_security.model.Role;
 import ru.kata.spring.boot_security.model.User;
 import ru.kata.spring.boot_security.service.RoleService;
 import ru.kata.spring.boot_security.service.UserService;
 
 import java.security.Principal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/admin")
@@ -20,6 +26,7 @@ public class AdminController {
     private final UserService userService;
     private final RoleService roleService;
 
+    @Autowired
     public AdminController(UserService userService, RoleService roleService) {
         this.userService = userService;
         this.roleService = roleService;
@@ -27,48 +34,55 @@ public class AdminController {
 
     @GetMapping
     public String adminPanel(Model model, Principal principal) {
-        try {
-            User currentUser = userService.findByEmail(principal.getName());
-            List<User> users = userService.findAll();
-
-            model.addAttribute("currentUser", currentUser);
-            model.addAttribute("users", users);
-            model.addAttribute("newUser", new User());
-            model.addAttribute("allRoles", roleService.findAll());
-
-            return "admin/admin-panel";
-        } catch (Exception e) {
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error loading admin panel",
-                    e
-            );
-        }
+        model.addAttribute("users", userService.findAll());
+        model.addAttribute("currentUser", userService.findByEmail(principal.getName()));
+        return "admin/admin-panel";
     }
 
-    @PostMapping("/create")
-    public String createUser(@ModelAttribute("newUser") User user,
-                             @RequestParam("selectedRoles") List<String> selectedRoles) {
+    @GetMapping("/new")
+    public String showNewUserForm(Model model) {
+        model.addAttribute("user", new User());
+        model.addAttribute("allRoles", roleService.findAll());
+        return "admin/new-user";
+    }
+
+    @PostMapping("/new")
+    public String createUser(@ModelAttribute("user") User user,
+                             @RequestParam("selectedRoles") List<String> roleNames) {
+        Set<Role> roles = roleNames.stream()
+                .map(roleService::findByName)
+                .collect(Collectors.toSet());
+        user.setRoles(roles);
         userService.save(user);
         return "redirect:/admin";
     }
 
     @GetMapping("/edit/{id}")
-    public String editUserForm(@PathVariable Long id, Model model) {
+    public String showEditForm(@PathVariable Long id, Model model) {
         model.addAttribute("user", userService.findById(id));
         model.addAttribute("allRoles", roleService.findAll());
         return "admin/edit-user";
     }
 
     @PostMapping("/edit")
-    public String updateUser(@ModelAttribute User user,
-                             @RequestParam("selectedRoles") List<String> selectedRoles) {
+    public String updateUser(@ModelAttribute("user") User user,
+                             @RequestParam("selectedRoles") List<String> roleNames) {
+        Set<Role> roles = roleNames.stream()
+                .map(roleService::findByName)
+                .collect(Collectors.toSet());
+        user.setRoles(roles);
         userService.update(user);
         return "redirect:/admin";
     }
 
     @GetMapping("/delete/{id}")
-    public String deleteUser(@PathVariable Long id) {
+    public String showDeleteForm(@PathVariable Long id, Model model) {
+        model.addAttribute("user", userService.findById(id));
+        return "admin/delete-user";
+    }
+
+    @PostMapping("/delete")
+    public String deleteUser(@RequestParam("id") Long id) {
         userService.delete(id);
         return "redirect:/admin";
     }
