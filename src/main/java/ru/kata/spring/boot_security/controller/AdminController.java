@@ -93,9 +93,17 @@ public class AdminController {
         return "admin/delete-user";
     }
 
-    @PostMapping("/admin/delete")
-    public String deleteUser(@RequestParam("id") Long id) {
+    @PostMapping("/admin/delete/{id}")
+    public String deleteUser(@PathVariable("id") Long id) {
         userService.delete(id);
         return "redirect:/admin";
     }
+
+    @GetMapping("/userAdmin-page")
+    public String userPageAdmin(Principal principal, Model model) {
+        User user = userService.findByEmail(principal.getName());
+        model.addAttribute("user", user);
+        return "admin/userAdmin-page";
+    }
+
 }
