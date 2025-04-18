@@ -1,20 +1,16 @@
 package ru.kata.spring.boot_security.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import ru.kata.spring.boot_security.model.Role;
 import ru.kata.spring.boot_security.model.User;
 import ru.kata.spring.boot_security.service.RoleService;
 import ru.kata.spring.boot_security.service.UserService;
 
 import java.security.Principal;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -39,10 +35,20 @@ public class AdminController {
         return "admin/admin-panel";
     }
 
+
+
+
     @GetMapping("/new")
-    public String showNewUserForm(Model model) {
+    public String showNewUserForm(Model model, Principal principal) {
         model.addAttribute("user", new User());
         model.addAttribute("allRoles", roleService.findAll());
+
+        // Добавляем currentUser в модель
+        if (principal != null) {
+            User currentUser = userService.findByEmail(principal.getName());
+            model.addAttribute("currentUser", currentUser);
+        }
+
         return "admin/new-user";
     }
 
@@ -59,17 +65,22 @@ public class AdminController {
 
     @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable Long id, Model model) {
-        model.addAttribute("user", userService.findById(id));
+        User user = userService.findById(id);
+        model.addAttribute("user", user);
         model.addAttribute("allRoles", roleService.findAll());
         return "admin/edit-user";
     }
 
     @PostMapping("/edit")
     public String updateUser(@ModelAttribute("user") User user,
-                             @RequestParam("selectedRoles") List<String> roleNames) {
-        Set<Role> roles = roleNames.stream()
-                .map(roleService::findByName)
-                .collect(Collectors.toSet());
+                             @RequestParam(value = "selectedRoles", required = false) List<String> roleNames) {
+        // Обработка ролей
+        Set<Role> roles = (roleNames != null) ?
+                roleNames.stream()
+                        .map(roleService::findByName)
+                        .collect(Collectors.toSet()) :
+                Collections.emptySet();
+
         user.setRoles(roles);
         userService.update(user);
         return "redirect:/admin";
