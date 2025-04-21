@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import ru.kata.spring.boot_security.model.Role;
 import ru.kata.spring.boot_security.model.User;
 import ru.kata.spring.boot_security.service.RoleService;
@@ -32,30 +33,22 @@ public class AdminController {
     public String adminPanel(Model model, Principal principal) {
         model.addAttribute("users", userService.findAll());
         model.addAttribute("currentUser", userService.findByEmail(principal.getName()));
+        model.addAttribute("allRoles", roleService.findAll());
         return "admin/admin-panel";
     }
 
 
-
-
     @GetMapping("/new")
-    public String showNewUserForm(Model model, Principal principal) {
+    public String showNewUserForm(Model model) {
         model.addAttribute("user", new User());
         model.addAttribute("allRoles", roleService.findAll());
-
-        // Добавляем currentUser в модель
-        if (principal != null) {
-            User currentUser = userService.findByEmail(principal.getName());
-            model.addAttribute("currentUser", currentUser);
-        }
-
-        return "admin/new-user";
+        return "admin/admin-panel";
     }
 
     @PostMapping("/new")
     public String createUser(@ModelAttribute("user") User user,
-                             @RequestParam("selectedRoles") List<String> roleNames) {
-        Set<Role> roles = roleNames.stream()
+                             @RequestParam("selectedRoles") List<String> selectedRoles) {
+        Set<Role> roles = selectedRoles.stream()
                 .map(roleService::findByName)
                 .collect(Collectors.toSet());
         user.setRoles(roles);
@@ -63,18 +56,26 @@ public class AdminController {
         return "redirect:/admin";
     }
 
-    @GetMapping("/edit/{id}")
-    public String showEditForm(@PathVariable Long id, Model model) {
-        User user = userService.findById(id);
-        model.addAttribute("user", user);
-        model.addAttribute("allRoles", roleService.findAll());
-        return "admin/edit-user";
-    }
-
     @PostMapping("/edit")
-    public String updateUser(@ModelAttribute("user") User user,
-                             @RequestParam(value = "selectedRoles", required = false) List<String> roleNames) {
-        // Обработка ролей
+    public String updateUser(@RequestParam Long id,
+                             @RequestParam String firstName,
+                             @RequestParam String lastName,
+                             @RequestParam int age,
+                             @RequestParam String email,
+                             @RequestParam(required = false) String password,
+                             @RequestParam(value = "selectedRoles", required = false) List<String> roleNames,
+                             RedirectAttributes redirectAttributes) {
+
+        User user = userService.findById(id);
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        user.setAge(age);
+        user.setEmail(email);
+
+        if (password != null && !password.isEmpty()) {
+            user.setPassword(password);
+        }
+
         Set<Role> roles = (roleNames != null) ?
                 roleNames.stream()
                         .map(roleService::findByName)
@@ -83,19 +84,16 @@ public class AdminController {
 
         user.setRoles(roles);
         userService.update(user);
+
+        redirectAttributes.addFlashAttribute("successMessage", "User updated successfully");
         return "redirect:/admin";
     }
 
-    @GetMapping("/admin/delete/{id}")
-    public String showDeleteForm(@PathVariable("id") Long id, Model model) {
-        User user = userService.findById(id);
-        model.addAttribute("user", user);
-        return "admin/delete-user";
-    }
 
-    @PostMapping("/admin/delete/{id}")
-    public String deleteUser(@PathVariable("id") Long id) {
+    @PostMapping("/delete")
+    public String deleteUser(@RequestParam Long id, RedirectAttributes redirectAttributes) {
         userService.delete(id);
+        redirectAttributes.addFlashAttribute("successMessage", "User deleted successfully");
         return "redirect:/admin";
     }
 

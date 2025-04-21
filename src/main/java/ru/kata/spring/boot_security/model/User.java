@@ -126,7 +126,6 @@ public class User implements UserDetails {
     }
 
 
-
     public String getRoleNames() {
         if (roles == null || roles.isEmpty()) {
             return "";
@@ -135,6 +134,7 @@ public class User implements UserDetails {
                 .map(Role::getName)
                 .collect(Collectors.joining(" "));
     }
+
     public String getRolesAsString() {
         if (roles == null || roles.isEmpty()) {
             return "no roles";
